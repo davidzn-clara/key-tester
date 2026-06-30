@@ -37,7 +37,8 @@ app.post('/load-credentials', (req, res) => {
       const data = JSON.parse(raw)
       result.projectName = data.projectName || ''
       result.filesFound.push(jsonFile)
-      const c = data.credentials || {}
+      // Support both { clientId, clientSecret } at root and nested under { credentials: { ... } }
+      const c = data.credentials || data
       if (c.clientId) result.clientId = c.clientId
       if (c.clientSecret) result.clientSecret = c.clientSecret
       if (c.publicKey) result.cert = c.publicKey
