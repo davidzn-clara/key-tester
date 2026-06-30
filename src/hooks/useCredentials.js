@@ -16,10 +16,9 @@ export function useCredentials() {
   const [timeLeft, setTimeLeft] = useState(null)
 
   // Folder loading state
-  const [folderPath, setFolderPath] = useState('llaves')
   const [folderLoading, setFolderLoading] = useState(false)
   const [folderError, setFolderError] = useState('')
-  const [folderResult, setFolderResult] = useState(null) // { projectName, filesFound, resolvedPath }
+  const [folderResult, setFolderResult] = useState(null)
 
   const timerRef = useRef(null)
 
@@ -35,32 +34,58 @@ export function useCredentials() {
     return () => clearInterval(timerRef.current)
   }, [tokenExpiry])
 
-  const loadFromFolder = async () => {
+  const readText = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve(e.target.result)
+      reader.onerror = reject
+      reader.readAsText(file)
+    })
+
+  const loadFromFileList = async (fileList) => {
     setFolderLoading(true)
     setFolderError('')
     setFolderResult(null)
     try {
-      const res = await fetch('/load-credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderPath }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
+      const files = Array.from(fileList)
+      const folderName = files[0]?.webkitRelativePath?.split('/')[0] || ''
+      const found = { projectName: '', clientId: '', clientSecret: '', cert: '', key: '', filesFound: [] }
 
-      if (data.clientId) setClientId(data.clientId)
-      if (data.clientSecret) setClientSecret(data.clientSecret)
-      if (data.cert) setCert(data.cert)
-      if (data.key) setKey(data.key)
+      const jsonFile = files.find((f) => f.name.endsWith('.json'))
+      if (jsonFile) {
+        const raw = await readText(jsonFile)
+        const data = JSON.parse(raw)
+        found.projectName = data.projectName || ''
+        found.filesFound.push(jsonFile.name)
+        const c = data.credentials || data
+        if (c.clientId) found.clientId = c.clientId
+        if (c.clientSecret) found.clientSecret = c.clientSecret
+        if (c.publicKey) found.cert = c.publicKey
+        if (c.privateKey) found.key = c.privateKey
+      }
+
+      if (!found.cert) {
+        const certFile = files.find((f) => f.name.endsWith('.crt') && !f.name.startsWith('ca_'))
+        if (certFile) { found.cert = await readText(certFile); found.filesFound.push(certFile.name) }
+      }
+      if (!found.key) {
+        const keyFile = files.find((f) => f.name.endsWith('.key'))
+        if (keyFile) { found.key = await readText(keyFile); found.filesFound.push(keyFile.name) }
+      }
+
+      if (found.clientId) setClientId(found.clientId)
+      if (found.clientSecret) setClientSecret(found.clientSecret)
+      if (found.cert) setCert(found.cert)
+      if (found.key) setKey(found.key)
 
       setFolderResult({
-        projectName: data.projectName,
-        filesFound: data.filesFound,
-        resolvedPath: data.resolvedPath,
-        hasCert: !!data.cert,
-        hasKey: !!data.key,
-        hasClientId: !!data.clientId,
-        hasClientSecret: !!data.clientSecret,
+        folderName,
+        projectName: found.projectName,
+        filesFound: found.filesFound,
+        hasCert: !!found.cert,
+        hasKey: !!found.key,
+        hasClientId: !!found.clientId,
+        hasClientSecret: !!found.clientSecret,
       })
     } catch (err) {
       setFolderError(err.message)
@@ -119,9 +144,8 @@ export function useCredentials() {
     token, setToken,
     tokenExpiry, tokenTotalSecs, timeLeft,
     tokenLoading, tokenError,
-    folderPath, setFolderPath,
     folderLoading, folderError, folderResult,
-    loadFromFolder, fetchToken,
+    loadFromFileList, fetchToken,
     buildUrl,
   }
 }

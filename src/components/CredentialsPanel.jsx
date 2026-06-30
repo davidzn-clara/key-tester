@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { MARKETS } from '../constants/endpoints'
 
 function CredField({ label, ok }) {
@@ -19,10 +19,11 @@ export default function CredentialsPanel({ creds, onValidate, validationResult }
     token, setToken,
     tokenTotalSecs, timeLeft,
     tokenLoading, tokenError,
-    folderPath, setFolderPath,
     folderLoading, folderError, folderResult,
-    loadFromFolder, fetchToken,
+    loadFromFileList, fetchToken,
   } = creds
+
+  const folderInputRef = useRef()
 
   const [showSecret, setShowSecret] = useState(false)
   const [showToken, setShowToken] = useState(false)
@@ -38,37 +39,47 @@ export default function CredentialsPanel({ creds, onValidate, validationResult }
     ? Math.max(0, (timeLeft / tokenTotalSecs) * 100) : 0
   const tokenBarColor = tokenPct > 30 ? 'bg-success' : tokenPct > 10 ? 'bg-warning' : 'bg-error'
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') loadFromFolder()
-  }
 
   return (
     <div className="space-y-4">
 
-      {/* Folder path */}
+      {/* Folder picker */}
       <div>
         <div className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
           Carpeta de credenciales
         </div>
-        <div className="flex gap-2">
-          <input
-            className="flex-1 bg-bg border border-border rounded px-2 py-1.5 text-xs font-mono text-text placeholder-muted focus:outline-none focus:border-accent"
-            placeholder="llaves  ó  /ruta/absoluta/a/carpeta"
-            value={folderPath}
-            onChange={(e) => setFolderPath(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button
-            className="px-3 py-1.5 bg-accent hover:bg-accent/80 disabled:bg-accent/40 text-white rounded text-xs font-medium transition-colors whitespace-nowrap"
-            onClick={loadFromFolder}
-            disabled={folderLoading || !folderPath.trim()}
-          >
-            {folderLoading ? '...' : 'Cargar'}
-          </button>
-        </div>
-        <div className="text-[10px] text-muted mt-1">
-          Ruta relativa al proyecto o absoluta. Se lee el JSON de credenciales automáticamente.
-        </div>
+
+        <input
+          ref={folderInputRef}
+          type="file"
+          className="hidden"
+          webkitdirectory=""
+          onChange={(e) => loadFromFileList(e.target.files)}
+        />
+
+        <button
+          className={`w-full flex items-center gap-3 border rounded px-3 py-2.5 text-left transition-colors ${
+            folderResult
+              ? 'border-success/50 bg-success/5 hover:border-success/80'
+              : 'border-border hover:border-accent/60 bg-panel'
+          }`}
+          onClick={() => folderInputRef.current.click()}
+          disabled={folderLoading}
+        >
+          <span className="text-lg">{folderLoading ? '⏳' : folderResult ? '📂' : '📁'}</span>
+          <span className="flex-1 min-w-0">
+            {folderLoading ? (
+              <span className="text-xs text-muted">Leyendo archivos...</span>
+            ) : folderResult ? (
+              <span className="text-xs text-text font-mono truncate block">{folderResult.folderName}</span>
+            ) : (
+              <span className="text-xs text-muted">Seleccionar carpeta de credenciales</span>
+            )}
+          </span>
+          <span className="text-xs text-muted flex-shrink-0">
+            {folderResult ? 'cambiar' : 'explorar'}
+          </span>
+        </button>
 
         {folderError && (
           <div className="mt-2 text-xs text-error bg-error/10 border border-error/30 rounded px-2 py-1.5">
