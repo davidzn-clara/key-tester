@@ -13,6 +13,14 @@ dist/
 client_id
 client_secret
 
+# Carpetas de credenciales de clientes
+llaves/
+keys/
+certs/
+credentials/
+*-credentials.json
+*_credentials.json
+
 # Logs
 *.log
 npm-debug.log*

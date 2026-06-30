@@ -3,27 +3,28 @@ import { MARKETS } from '../constants/endpoints'
 
 export function useCredentials() {
   const [cert, setCert] = useState('')
-  const [certName, setCertName] = useState('')
   const [key, setKey] = useState('')
-  const [keyName, setKeyName] = useState('')
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [market, setMarket] = useState(MARKETS[0])
   const [sandbox, setSandbox] = useState(false)
   const [token, setToken] = useState('')
-  const [tokenExpiry, setTokenExpiry] = useState(null) // timestamp ms
+  const [tokenExpiry, setTokenExpiry] = useState(null)
   const [tokenTotalSecs, setTokenTotalSecs] = useState(null)
   const [tokenLoading, setTokenLoading] = useState(false)
   const [tokenError, setTokenError] = useState('')
   const [timeLeft, setTimeLeft] = useState(null)
 
+  // Folder loading state
+  const [folderPath, setFolderPath] = useState('llaves')
+  const [folderLoading, setFolderLoading] = useState(false)
+  const [folderError, setFolderError] = useState('')
+  const [folderResult, setFolderResult] = useState(null) // { projectName, filesFound, resolvedPath }
+
   const timerRef = useRef(null)
 
   useEffect(() => {
-    if (!tokenExpiry) {
-      setTimeLeft(null)
-      return
-    }
+    if (!tokenExpiry) { setTimeLeft(null); return }
     const tick = () => {
       const left = Math.max(0, Math.floor((tokenExpiry - Date.now()) / 1000))
       setTimeLeft(left)
@@ -34,19 +35,38 @@ export function useCredentials() {
     return () => clearInterval(timerRef.current)
   }, [tokenExpiry])
 
-  const readFile = (file) =>
-    new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target.result)
-      reader.readAsText(file)
-    })
+  const loadFromFolder = async () => {
+    setFolderLoading(true)
+    setFolderError('')
+    setFolderResult(null)
+    try {
+      const res = await fetch('/load-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderPath }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
 
-  const loadFile = async (file, type) => {
-    const content = await readFile(file)
-    if (type === 'cert') { setCert(content); setCertName(file.name) }
-    if (type === 'key') { setKey(content); setKeyName(file.name) }
-    if (type === 'clientId') setClientId(content.trim())
-    if (type === 'clientSecret') setClientSecret(content.trim())
+      if (data.clientId) setClientId(data.clientId)
+      if (data.clientSecret) setClientSecret(data.clientSecret)
+      if (data.cert) setCert(data.cert)
+      if (data.key) setKey(data.key)
+
+      setFolderResult({
+        projectName: data.projectName,
+        filesFound: data.filesFound,
+        resolvedPath: data.resolvedPath,
+        hasCert: !!data.cert,
+        hasKey: !!data.key,
+        hasClientId: !!data.clientId,
+        hasClientSecret: !!data.clientSecret,
+      })
+    } catch (err) {
+      setFolderError(err.message)
+    } finally {
+      setFolderLoading(false)
+    }
   }
 
   const fetchToken = async () => {
@@ -82,11 +102,6 @@ export function useCredentials() {
     }
   }
 
-  const getBaseUrl = () => {
-    const base = market.baseUrl
-    return base
-  }
-
   const buildUrl = (path) => {
     const base = market.baseUrl
     if (sandbox && path.startsWith('/api/')) {
@@ -96,7 +111,7 @@ export function useCredentials() {
   }
 
   return {
-    cert, certName, key, keyName,
+    cert, key,
     clientId, setClientId,
     clientSecret, setClientSecret,
     market, setMarket,
@@ -104,7 +119,9 @@ export function useCredentials() {
     token, setToken,
     tokenExpiry, tokenTotalSecs, timeLeft,
     tokenLoading, tokenError,
-    loadFile, fetchToken,
-    getBaseUrl, buildUrl,
+    folderPath, setFolderPath,
+    folderLoading, folderError, folderResult,
+    loadFromFolder, fetchToken,
+    buildUrl,
   }
 }
