@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import CredentialsPanel from './components/CredentialsPanel'
 import RequestBuilder from './components/RequestBuilder'
 import ResponsePanel from './components/ResponsePanel'
@@ -7,7 +7,16 @@ import { useCredentials } from './hooks/useCredentials'
 import { useRequestHistory } from './hooks/useRequestHistory'
 
 export default function App() {
-  const creds = useCredentials()
+  // F5: fetch shared secret from the proxy on mount — only same-origin JS can read this
+  const secretRef = useRef('')
+  useEffect(() => {
+    fetch('/config')
+      .then((r) => r.json())
+      .then((d) => { secretRef.current = d.proxySecret })
+      .catch(() => {})
+  }, [])
+
+  const creds = useCredentials(secretRef)
   const { history, addEntry } = useRequestHistory()
   const [response, setResponse] = useState(null)
   const [sentRequest, setSentRequest] = useState(null)
@@ -15,13 +24,19 @@ export default function App() {
   const [validationResult, setValidationResult] = useState(null)
   const [historyOpen, setHistoryOpen] = useState(true)
 
+  const proxyHeaders = (extra = {}) => ({
+    'Content-Type': 'application/json',
+    'x-proxy-secret': secretRef.current,
+    ...extra,
+  })
+
   const sendRequest = async ({ method, url, headers, body, rawPath }) => {
     setLoading(true)
     setSentRequest({ method, url, headers, body })
     try {
       const res = await fetch('/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: proxyHeaders(),
         body: JSON.stringify({
           method,
           url,
@@ -33,13 +48,16 @@ export default function App() {
       })
       const data = await res.json()
       setResponse(data)
+      // F6: redact Bearer token before storing in history
+      const safeHeaders = { ...headers }
+      if (safeHeaders.Authorization) safeHeaders.Authorization = '[redacted]'
       addEntry({
         method,
         path: rawPath || url,
         url,
         status: data.status,
         timestamp: data.timestamp,
-        headers,
+        headers: safeHeaders,
         body,
       })
     } catch (err) {
@@ -50,7 +68,6 @@ export default function App() {
         body: { error: err.message },
         durationMs: 0,
         timestamp: new Date().toISOString(),
-        proxyError: err.message,
       })
     } finally {
       setLoading(false)
@@ -63,7 +80,7 @@ export default function App() {
     try {
       const res = await fetch('/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: proxyHeaders(),
         body: JSON.stringify({
           method: 'GET',
           url,

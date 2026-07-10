@@ -8,6 +8,7 @@ export default defineConfig({
       '/proxy': 'http://localhost:3001',
       '/get-token': 'http://localhost:3001',
       '/load-credentials': 'http://localhost:3001',
+      '/config': 'http://localhost:3001',
     }
   }
 })

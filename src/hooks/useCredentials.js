@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MARKETS } from '../constants/endpoints'
 
-export function useCredentials() {
+export function useCredentials(secretRef) {
   const [cert, setCert] = useState('')
   const [key, setKey] = useState('')
   const [clientId, setClientId] = useState('')
@@ -100,7 +100,7 @@ export function useCredentials() {
     try {
       const res = await fetch('/get-token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-proxy-secret': secretRef?.current || '' },
         body: JSON.stringify({
           clientId,
           clientSecret,
