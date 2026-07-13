@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    console.error('[get-token]', err.message)
+    console.error('[get-token] upstream error:', err.code || err.response?.status || 'unknown')
     const status = err.response?.status || 500
     res.status(status).json({
       status,

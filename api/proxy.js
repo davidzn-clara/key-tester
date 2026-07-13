@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    console.error('[proxy]', err.message)
+    console.error('[proxy] upstream error:', err.code || err.response?.status || 'unknown')
     const status = err.response?.status || 500
     res.status(status).json({
       status,
