@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/proxy",      "destination": "/api/proxy" },
+    { "source": "/get-token",  "destination": "/api/get-token" },
+    { "source": "/config",     "destination": "/api/config" }
+  ]
+}
