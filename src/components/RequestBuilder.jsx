@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ENDPOINTS, HTTP_METHODS } from '../constants/endpoints'
+import { ENDPOINTS, HTTP_METHODS, MARKETS } from '../constants/endpoints'
 
 function ParamsTable({ rows, setRows }) {
   const update = (i, field, val) =>
@@ -95,6 +95,21 @@ export default function RequestBuilder({ creds, onSend, loading }) {
     if (!enabledParams.length) return base
     const qs = enabledParams.map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&')
     return `${base}?${qs}`
+  }
+
+  const handleFullUrlChange = (e) => {
+    const val = e.target.value
+    try {
+      const parsed = new URL(val)
+      const matched = MARKETS.find((m) => new URL(m.baseUrl).origin === parsed.origin)
+      if (matched) creds.setMarket(matched)
+      setUrlPath(parsed.pathname)
+      const newParams = []
+      parsed.searchParams.forEach((v, k) => newParams.push({ key: k, value: v, enabled: true }))
+      if (newParams.length) setParams(newParams)
+    } catch {
+      if (val.startsWith('/')) setUrlPath(val)
+    }
   }
 
   const enabledHeaders = () => {
@@ -216,10 +231,13 @@ export default function RequestBuilder({ creds, onSend, loading }) {
         </button>
       </div>
 
-      {/* Full URL preview */}
-      <div className="text-xs font-mono text-muted bg-bg border border-border/50 rounded px-2 py-1 truncate">
-        {buildFinalUrl()}
-      </div>
+      {/* Full URL — editable, paste a complete URL here */}
+      <input
+        className="w-full text-xs font-mono text-muted bg-bg border border-border/50 rounded px-2 py-1 focus:outline-none focus:border-accent focus:text-text"
+        value={buildFinalUrl()}
+        onChange={handleFullUrlChange}
+        spellCheck={false}
+      />
 
       {/* Path variable substitution */}
       {pathVarKeys.length > 0 && (
