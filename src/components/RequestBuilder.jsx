@@ -69,6 +69,14 @@ export default function RequestBuilder({ creds, onSend, loading }) {
     }
   }, [token])
 
+  // Disable Content-Type for methods that have no body (matches Postman behavior)
+  useEffect(() => {
+    const noBody = method === 'GET' || method === 'DELETE'
+    setHeaders((prev) =>
+      prev.map((h) => (h.key === 'Content-Type' ? { ...h, enabled: !noBody } : h))
+    )
+  }, [method])
+
   // Extract path vars when URL changes
   useEffect(() => {
     const vars = extractPathVars(urlPath)
