@@ -39,7 +39,7 @@ export function sanitizeHeaders(headers) {
 
 // PROXY_SECRET must be set in the Vercel dashboard — proxy is closed if missing
 export function checkSecret(req, res) {
-  const secret = process.env.PROXY_SECRET
+  const secret = (process.env.PROXY_SECRET || '').trim()
   if (!secret || req.headers['x-proxy-secret'] !== secret) {
     res.status(401).json({ error: 'Unauthorized' })
     return false
