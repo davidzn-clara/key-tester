@@ -12,7 +12,7 @@ export default function App() {
   useEffect(() => {
     fetch('/config')
       .then((r) => r.json())
-      .then((d) => { secretRef.current = (d.proxySecret || '').trim() })
+      .then((d) => { secretRef.current = String(d.proxySecret || '').replace(/[^\x20-\x7E]/g, '') })
       .catch(() => {})
   }, [])
 
